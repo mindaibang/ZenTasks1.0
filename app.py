@@ -1,5 +1,8 @@
 import streamlit as st
+import pandas as pd
 import matplotlib.pyplot as plt
+import plotly.express as px
+from st_aggrid import AgGrid, GridOptionsBuilder
 from utils import *
 from datetime import date
 
@@ -7,6 +10,7 @@ from datetime import date
 create_tables()
 ensure_admin_exists()
 
+st.set_page_config(page_title="Task Manager", layout="wide")
 st.sidebar.title("🔐 Login / Register")
 
 # Session page control
@@ -129,6 +133,7 @@ elif st.session_state["page"] == "dashboard":
     if role in ["admin", "manager"]:
         with tabs[2 if role == "admin" else 1]:
             st.header("📝 Manage Tasks")
+            # Add Task Form
             task_title = st.text_input("Task Title")
             task_description = st.text_area("Description")
             task_priority = st.selectbox("Priority", ["High", "Medium", "Low"])
@@ -157,13 +162,33 @@ elif st.session_state["page"] == "dashboard":
                 st.success(f"✅ Task '{task_title}' added.")
                 st.rerun()
 
+            # Excel-like Grid
+            st.subheader("📋 Task Overview")
+            tasks = get_all_tasks()
+            if role == "manager":
+                tasks = [t for t in tasks if t[8] == get_user_department(user_id)]
+            df_tasks = pd.DataFrame(tasks, columns=["ID", "Title", "Description", "Priority", "Status", "Start Date", "Due Date", "Assigned To", "Department"])
+            if not df_tasks.empty:
+                gb = GridOptionsBuilder.from_dataframe(df_tasks)
+                gb.configure_pagination()
+                gb.configure_default_column(editable=True, groupable=True)
+                gb.configure_column("Status", cellEditor='agSelectCellEditor', cellEditorParams={'values': ['To Do', 'In Progress', 'Done']})
+                grid_options = gb.build()
+
+                grid_response = AgGrid(df_tasks, gridOptions=grid_options, height=400, width='100%', reload_data=True)
+
+                updated_df = grid_response['data']
+                save_task_updates(updated_df)
+            else:
+                st.info("📭 No tasks found.")
+
     if role == "member":
         with tabs[0]:
             st.header("📝 My Tasks")
             tasks = get_tasks_for_user(user_id)
             if tasks:
-                for t in tasks:
-                    st.write(f"- **{t[1]}** ({t[3]}) - {t[4]}")
+                df_tasks = pd.DataFrame(tasks, columns=["ID", "Title", "Description", "Priority", "Status", "Start Date", "Due Date"])
+                st.dataframe(df_tasks)
             else:
                 st.info("📭 No tasks assigned.")
 
@@ -175,8 +200,22 @@ elif st.session_state["page"] == "dashboard":
             if role == "manager":
                 summary = get_tasks_summary_by_department(get_user_department(user_id))
             if summary:
-                fig, ax = plt.subplots()
-                ax.pie(summary.values(), labels=summary.keys(), autopct='%1.1f%%')
-                st.pyplot(fig)
+                st.subheader("📊 Task Status Pie Chart")
+                fig1, ax1 = plt.subplots()
+                ax1.pie(summary.values(), labels=summary.keys(), autopct='%1.1f%%')
+                st.pyplot(fig1)
+
+                st.subheader("📅 Task Timeline (Gantt Chart)")
+                df_gantt = get_tasks_as_df()
+                fig2 = px.timeline(
+                    df_gantt,
+                    x_start="Start Date",
+                    x_end="Due Date",
+                    y="Assigned To",
+                    color="Status",
+                    title="Task Progress Timeline"
+                )
+                fig2.update_yaxes(autorange="reversed")
+                st.plotly_chart(fig2)
             else:
                 st.info("📭 No tasks to report.")
