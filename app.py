@@ -1,13 +1,13 @@
 import streamlit as st
 import pandas as pd
-from st_aggrid import AgGrid, GridOptionsBuilder, JsCode
-from utils import *
+import plotly.express as px
 from datetime import date
+from utils import *
 
 # ---------------- INIT -----------------
 create_tables()
 ensure_admin_exists()
-st.set_page_config(page_title="Task Manager", layout="wide")
+st.set_page_config(page_title="🌟 Task Manager", layout="wide")
 
 # ---------------- SIDEBAR -----------------
 st.sidebar.title("🔐 Login / Register")
@@ -66,32 +66,18 @@ elif st.session_state["page"] == "dashboard":
 
     # -------- TAB: TASK OVERVIEW ---------
     with tabs[0]:
-        st.header("📋 Task Overview (Excel-like)")
+        st.header("📋 Task Overview")
         tasks = get_all_tasks()
         df_tasks = pd.DataFrame(tasks, columns=["ID", "Title", "Description", "Priority", "Status", "Start Date", "Due Date", "Assigned To", "Department"])
-
-        # Progress Bar Renderer
-        progress_renderer = JsCode("""
-        function(params) {
-            let value = 0;
-            if(params.value === 'Done') { value = 100; }
-            else if(params.value === 'In Progress') { value = 50; }
-            else { value = 0; }
-            return '<div style="width:100%;background:#ddd"><div style="width:' + value + '%;background:#76c7c0;height:10px"></div></div>';
-        }
-        """)
-
-        # Ag-Grid Options
-        gb = GridOptionsBuilder.from_dataframe(df_tasks)
-        gb.configure_pagination()
-        gb.configure_column("Status", editable=True, cellEditor='agSelectCellEditor', cellEditorParams={'values': ['To Do', 'In Progress', 'Done']})
-        gb.configure_column("Priority", cellEditor='agSelectCellEditor', cellEditorParams={'values': ['High', 'Medium', 'Low']})
-        gb.configure_column("Progress", valueGetter='data.Status', cellRenderer=progress_renderer)
-        grid_options = gb.build()
-
-        grid_response = AgGrid(df_tasks, gridOptions=grid_options, height=500, width='100%', reload_data=True)
-        updated_df = grid_response['data']
-        save_task_updates(updated_df)
+        if not df_tasks.empty:
+            df_tasks["Status Color"] = df_tasks["Status"].map({
+                "To Do": "🔴 To Do",
+                "In Progress": "🟡 In Progress",
+                "Done": "🟢 Done"
+            })
+            st.dataframe(df_tasks[["Title", "Priority", "Status Color", "Start Date", "Due Date", "Assigned To", "Department"]])
+        else:
+            st.info("📭 No tasks yet.")
 
     # -------- TAB: ADD TASK ---------
     with tabs[1]:
@@ -116,9 +102,10 @@ elif st.session_state["page"] == "dashboard":
 
     # -------- TAB: REPORTS ---------
     with tabs[2]:
-        st.header("📈 Reports (Pie Chart)")
+        st.header("📈 Reports")
         summary = get_tasks_summary()
         if summary:
-            st.write(summary)
+            fig = px.pie(names=list(summary.keys()), values=list(summary.values()), title="Task Status Distribution")
+            st.plotly_chart(fig)
         else:
             st.info("📭 No tasks to report.")
