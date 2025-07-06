@@ -22,7 +22,7 @@ if st.sidebar.button("🚪 Logout"):
 
 # ---------------- REGISTER -----------------
 if st.session_state["page"] == "register":
-    st.title("📝 Register")
+    st.title("📝 Register Account")
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
     full_name = st.text_input("Full Name")
@@ -30,6 +30,7 @@ if st.session_state["page"] == "register":
     phone = st.text_input("Phone")
     departments = get_departments()
     department = st.selectbox("Department", departments, format_func=lambda x: x[1])
+
     if st.button("Register"):
         try:
             register_user(username, password, full_name, email, phone, department[0])
@@ -37,7 +38,7 @@ if st.session_state["page"] == "register":
             st.session_state["page"] = "login"
             st.rerun()
         except:
-            st.error("⚠ Username exists!")
+            st.error("⚠ Username already exists!")
 
 # ---------------- LOGIN -----------------
 elif st.session_state["page"] == "login":
@@ -70,12 +71,13 @@ elif st.session_state["page"] == "dashboard":
         tasks = get_all_tasks()
         df_tasks = pd.DataFrame(tasks, columns=["ID", "Title", "Description", "Priority", "Status", "Start Date", "Due Date", "Assigned To", "Department"])
         if not df_tasks.empty:
-            df_tasks["Status Color"] = df_tasks["Status"].map({
+            # Add emoji for Status
+            df_tasks["Status"] = df_tasks["Status"].map({
                 "To Do": "🔴 To Do",
                 "In Progress": "🟡 In Progress",
                 "Done": "🟢 Done"
             })
-            st.dataframe(df_tasks[["Title", "Priority", "Status Color", "Start Date", "Due Date", "Assigned To", "Department"]])
+            st.dataframe(df_tasks[["Title", "Priority", "Status", "Start Date", "Due Date", "Assigned To", "Department"]])
         else:
             st.info("📭 No tasks yet.")
 
@@ -89,16 +91,22 @@ elif st.session_state["page"] == "dashboard":
         task_due_date = st.date_input("Due Date", date.today())
         assigned_users = get_all_users()
         if assigned_users:
-            assigned_to = st.selectbox("Assign To", assigned_users, format_func=lambda u: f"{u[1]} ({u[2]})")
+            # Fix: flatten assigned_users to string list for selectbox
+            user_labels = [f"{u[1]} ({u[2]})" for u in assigned_users]
+            selected_label = st.selectbox("Assign To", user_labels)
+            selected_index = user_labels.index(selected_label)
+            assigned_to_id = assigned_users[selected_index][0]
+            department_id = assigned_users[selected_index][3]
+
             if st.button("Add Task"):
                 add_task(task_title, task_description, task_priority,
                          task_start_date.strftime("%Y-%m-%d"),
                          task_due_date.strftime("%Y-%m-%d"),
-                         assigned_to[0], user_id, assigned_to[3])
+                         assigned_to_id, user_id, department_id)
                 st.success("✅ Task added!")
                 st.experimental_rerun()
         else:
-            st.warning("⚠ No users available.")
+            st.warning("⚠ No users available. Please add users first.")
 
     # -------- TAB: REPORTS ---------
     with tabs[2]:
