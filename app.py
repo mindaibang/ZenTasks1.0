@@ -3,20 +3,24 @@ import matplotlib.pyplot as plt
 from utils import *
 from datetime import date
 
-# ✅ Init DB + Admin
+# ✅ Init DB + Admin mặc định
 create_tables()
 ensure_admin_exists()
 
-# Sidebar
 st.sidebar.title("🔐 Login / Register")
 
+# Session page control
 if "page" not in st.session_state:
     st.session_state["page"] = "login"
 
+# Navigation buttons
 if st.sidebar.button("📝 Register"):
     st.session_state["page"] = "register"
+if st.sidebar.button("🚪 Logout"):
+    st.session_state.clear()
+    st.rerun()
 
-# ------------------ Register ------------------
+# ------------------ Register Page ------------------
 if st.session_state["page"] == "register":
     st.title("📝 Register Account")
     username = st.text_input("Username")
@@ -38,11 +42,12 @@ if st.session_state["page"] == "register":
             conn.commit()
             st.success("🎉 Account registered. Waiting for admin approval.")
             st.session_state["page"] = "login"
+            st.rerun()
         except sqlite3.IntegrityError:
             st.error("⚠️ Username already exists.")
         conn.close()
 
-# ------------------ Login ------------------
+# ------------------ Login Page ------------------
 elif st.session_state["page"] == "login":
     st.title("🔐 Login")
     username = st.text_input("Username")
@@ -52,17 +57,17 @@ elif st.session_state["page"] == "login":
         if user:
             user_id, role, approved, full_name = user
             if not approved:
-                st.warning("⏳ Account not approved.")
+                st.warning("⏳ Account not approved yet.")
             else:
                 st.session_state["user_id"] = user_id
                 st.session_state["role"] = role
                 st.session_state["full_name"] = full_name
                 st.session_state["page"] = "dashboard"
-                st.experimental_rerun()
+                st.rerun()
         else:
             st.error("❌ Wrong username or password.")
 
-# ------------------ Dashboard ------------------
+# ------------------ Dashboard Page ------------------
 elif st.session_state["page"] == "dashboard":
     role = st.session_state["role"]
     st.sidebar.success(f"👤 {st.session_state['full_name']} ({role})")
@@ -70,28 +75,32 @@ elif st.session_state["page"] == "dashboard":
     if role == "admin":
         st.title("👑 Admin Dashboard")
 
-        # Phòng ban
+        # Manage Departments
         st.subheader("🏢 Manage Departments")
-        new_dept = st.text_input("Add new department")
+        new_dept = st.text_input("Add New Department")
         if st.button("Add Department"):
             add_department(new_dept)
             st.success(f"✅ Added department: {new_dept}")
-            st.experimental_rerun()
+            st.rerun()
 
         st.write("📋 Existing Departments:")
         for dept in get_departments():
             st.write(f"- {dept[1]}")
 
-        # User approval
+        # Approve Users
         st.subheader("👥 Approve New Users")
-        for user in get_pending_users():
-            st.write(f"- **{user[2]}** ({user[1]}, {user[3]})")
-            if st.button(f"✅ Approve {user[1]}", key=f"approve_{user[0]}"):
-                approve_user(user[0])
-                st.success(f"✅ Approved {user[1]}")
-                st.experimental_rerun()
+        pending_users = get_pending_users()
+        if pending_users:
+            for user in pending_users:
+                st.write(f"- **{user[2]}** ({user[1]}, {user[3]})")
+                if st.button(f"✅ Approve {user[1]}", key=f"approve_{user[0]}"):
+                    approve_user(user[0])
+                    st.success(f"✅ Approved {user[1]}")
+                    st.rerun()
+        else:
+            st.info("✅ No pending users.")
 
-        # Dashboard Pie Chart
+        # Task Summary
         st.subheader("📊 Task Summary")
         summary = get_tasks_summary()
         if summary:
@@ -101,7 +110,7 @@ elif st.session_state["page"] == "dashboard":
         else:
             st.info("📭 No tasks found.")
 
-# ------------------ Logout ------------------
-if st.sidebar.button("🚪 Logout"):
-    st.session_state.clear()
-    st.experimental_rerun()
+    else:
+        st.title("📋 User Dashboard")
+        st.info("🚧 Features for non-admin users coming soon!")
+
