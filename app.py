@@ -63,10 +63,46 @@ elif st.session_state["page"] == "dashboard":
     role = st.session_state["role"]
     user_id = st.session_state["user_id"]
 
-    tabs = st.tabs(["📋 Task Overview", "📝 Add Task", "📈 Reports"])
+    tabs = st.tabs(["🏢 Departments", "👥 Users", "📋 Tasks", "📈 Reports"])
 
-    # -------- TAB: TASK OVERVIEW ---------
-    with tabs[0]:
+    # -------- TAB: DEPARTMENTS (Admin only) ---------
+    if role == "admin":
+        with tabs[0]:
+            st.header("🏢 Manage Departments")
+            new_dept = st.text_input("Add New Department")
+            if st.button("Add Department"):
+                add_department(new_dept)
+                st.success(f"✅ Added department: {new_dept}")
+                st.rerun()
+            st.subheader("📋 Existing Departments:")
+            depts = get_departments()
+            for dept in depts:
+                st.write(f"- {dept[1]}")
+
+    # -------- TAB: USERS (Admin & Manager) ---------
+    if role in ["admin", "manager"]:
+        with tabs[1]:
+            st.header("👥 Manage Users")
+            if role == "admin":
+                st.subheader("⏳ Pending Users for Approval")
+                pending_users = get_pending_users()
+                if pending_users:
+                    for user in pending_users:
+                        st.write(f"- **{user[2]}** ({user[1]}, {user[3]})")
+                        if st.button(f"✅ Approve {user[1]}", key=f"approve_{user[0]}"):
+                            approve_user(user[0])
+                            st.success(f"✅ Approved {user[1]}")
+                            st.rerun()
+                else:
+                    st.info("✅ No pending users.")
+
+            st.subheader("📋 All Approved Users")
+            approved_users = get_all_users()
+            for u in approved_users:
+                st.write(f"- {u[1]} ({u[2]}, Dept: {u[3]})")
+
+    # -------- TAB: TASKS ---------
+    with tabs[2]:
         st.header("📋 Task Overview")
         tasks = get_all_tasks()
         df_tasks = pd.DataFrame(tasks, columns=["ID", "Title", "Description", "Priority", "Status", "Start Date", "Due Date", "Assigned To", "Department"])
@@ -81,9 +117,7 @@ elif st.session_state["page"] == "dashboard":
         else:
             st.info("📭 No tasks yet.")
 
-    # -------- TAB: ADD TASK ---------
-    with tabs[1]:
-        st.header("📝 Add New Task")
+        st.subheader("📝 Add New Task")
         task_title = st.text_input("Task Title")
         task_description = st.text_area("Description")
         task_priority = st.selectbox("Priority", ["High", "Medium", "Low"])
@@ -91,7 +125,6 @@ elif st.session_state["page"] == "dashboard":
         task_due_date = st.date_input("Due Date", date.today())
         assigned_users = get_all_users()
         if assigned_users:
-            # Fix: flatten assigned_users to string list for selectbox
             user_labels = [f"{u[1]} ({u[2]})" for u in assigned_users]
             selected_label = st.selectbox("Assign To", user_labels)
             selected_index = user_labels.index(selected_label)
@@ -109,7 +142,7 @@ elif st.session_state["page"] == "dashboard":
             st.warning("⚠ No users available. Please add users first.")
 
     # -------- TAB: REPORTS ---------
-    with tabs[2]:
+    with tabs[3]:
         st.header("📈 Reports")
         summary = get_tasks_summary()
         if summary:
