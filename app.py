@@ -63,7 +63,7 @@ elif st.session_state["page"] == "dashboard":
     role = st.session_state["role"]
     user_id = st.session_state["user_id"]
 
-    tabs = st.tabs(["🏢 Departments", "👥 Users", "📋 Tasks", "📈 Reports"])
+    tabs = st.tabs(["🏢 Departments", "👥 Users", "📋 Tasks", "🗂 Kanban", "📈 Reports"])
 
     # -------- TAB: DEPARTMENTS (Admin only) ---------
     if role == "admin":
@@ -107,7 +107,6 @@ elif st.session_state["page"] == "dashboard":
         tasks = get_all_tasks()
         df_tasks = pd.DataFrame(tasks, columns=["ID", "Title", "Description", "Priority", "Status", "Start Date", "Due Date", "Assigned To", "Department"])
         if not df_tasks.empty:
-            # Add emoji for Status
             df_tasks["Status"] = df_tasks["Status"].map({
                 "To Do": "🔴 To Do",
                 "In Progress": "🟡 In Progress",
@@ -141,12 +140,20 @@ elif st.session_state["page"] == "dashboard":
         else:
             st.warning("⚠ No users available. Please add users first.")
 
-    # -------- TAB: REPORTS ---------
+    # -------- TAB: KANBAN ---------
     with tabs[3]:
+        st.header("🗂 Kanban View (coming soon...)")
+        st.info("🚧 Feature in progress")
+
+    # -------- TAB: REPORTS ---------
+    with tabs[4]:
         st.header("📈 Reports")
         summary = get_tasks_summary()
         if summary:
             fig = px.pie(names=list(summary.keys()), values=list(summary.values()), title="Task Status Distribution")
             st.plotly_chart(fig)
+            bar_data = pd.DataFrame.from_dict(summary, orient="index", columns=["Count"])
+            fig_bar = px.bar(bar_data, x=bar_data.index, y="Count", title="Task Status Bar Chart")
+            st.plotly_chart(fig_bar)
         else:
             st.info("📭 No tasks to report.")
