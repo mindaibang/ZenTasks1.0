@@ -75,7 +75,7 @@ elif st.session_state["page"] == "dashboard":
     if role == "admin":
         st.title("👑 Admin Dashboard")
 
-        # Manage Departments
+        # ---------- Manage Departments ----------
         st.subheader("🏢 Manage Departments")
         new_dept = st.text_input("Add New Department")
         if st.button("Add Department"):
@@ -87,7 +87,7 @@ elif st.session_state["page"] == "dashboard":
         for dept in get_departments():
             st.write(f"- {dept[1]}")
 
-        # Approve Users
+        # ---------- Approve Users ----------
         st.subheader("👥 Approve New Users")
         pending_users = get_pending_users()
         if pending_users:
@@ -100,17 +100,47 @@ elif st.session_state["page"] == "dashboard":
         else:
             st.info("✅ No pending users.")
 
-        # Task Summary
-        st.subheader("📊 Task Summary")
+        # ---------- Manage Tasks ----------
+        st.subheader("📝 Manage Tasks")
+        task_title = st.text_input("Task Title")
+        task_description = st.text_area("Description")
+        task_priority = st.selectbox("Priority", ["High", "Medium", "Low"])
+        task_start_date = st.date_input("Start Date", date.today())
+        task_due_date = st.date_input("Due Date", date.today())
+        assigned_users = get_all_users()
+        if assigned_users:
+            assigned_to = st.selectbox("Assign To", assigned_users, format_func=lambda u: f"{u[1]} ({u[2]})")
+        else:
+            st.warning("⚠ No users to assign. Add users first.")
+            assigned_to = None
+
+        if st.button("Add Task") and assigned_to:
+            add_task(
+                task_title,
+                task_description,
+                task_priority,
+                task_start_date.strftime("%Y-%m-%d"),
+                task_due_date.strftime("%Y-%m-%d"),
+                assigned_to[0],  # user id
+                st.session_state["user_id"],  # created_by
+                assigned_to[3]  # department_id
+            )
+            st.success(f"✅ Task '{task_title}' added.")
+            st.rerun()
+
+        # ---------- Task Summary ----------
+        st.subheader("📋 All Tasks")
         summary = get_tasks_summary()
         if summary:
+            for status, count in summary.items():
+                st.write(f"- **{status}**: {count}")
+            # Show pie chart
             fig, ax = plt.subplots()
             ax.pie(summary.values(), labels=summary.keys(), autopct='%1.1f%%')
             st.pyplot(fig)
         else:
-            st.info("📭 No tasks found.")
+            st.info("📭 No tasks yet.")
 
     else:
         st.title("📋 User Dashboard")
         st.info("🚧 Features for non-admin users coming soon!")
-
