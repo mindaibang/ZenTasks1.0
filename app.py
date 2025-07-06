@@ -104,7 +104,7 @@ elif st.session_state["page"] == "dashboard":
                          task_due_date.strftime("%Y-%m-%d"),
                          assigned_to_id, user_id, department_id)
                 st.success("✅ Task added!")
-                st.experimental_rerun()
+                st.rerun()
         else:
             st.warning("⚠ No users available. Please add users first.")
 
